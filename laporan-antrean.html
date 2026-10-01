@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Laporan Antrean - Desa Bukit Raya</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#17324d}
+.wrap{max-width:1400px;margin:0 auto;padding:24px}
+.header{background:#0b2b50;color:#fff;border-radius:16px;padding:22px 26px;margin-bottom:18px}
+.header h1{margin:0;font-size:28px}.header p{margin:6px 0 0;opacity:.8}
+.filters,.summary,.panel{background:#fff;border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 4px 18px rgba(11,43,80,.07)}
+.filters{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;font-weight:700;color:#60758a}
+input,select,button{height:42px;border:1px solid #d5dee8;border-radius:10px;padding:0 12px;font-size:14px}
+button{cursor:pointer;font-weight:700}.primary{background:#0b2b50;color:#fff;border-color:#0b2b50}.secondary{background:#fff}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.summary{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.stat{border:1px solid #e1e8ef;border-radius:12px;padding:14px}.stat small{display:block;color:#718398;font-weight:700}.stat strong{display:block;font-size:28px;margin-top:5px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.panel h2{font-size:18px;margin:0 0 14px}.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px 9px;border-bottom:1px solid #e8edf2;text-align:left;vertical-align:top}th{background:#f7f9fb;font-size:12px;white-space:nowrap}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#eef3f8}
+.empty{text-align:center;padding:28px;color:#8291a1}
+.note{font-size:12px;color:#718398;margin-top:8px}
+@media(max-width:900px){.summary{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media print{body{background:#fff}.wrap{max-width:none;padding:0}.filters,.actions{display:none}.header,.summary,.panel{box-shadow:none;border:1px solid #ddd}.panel{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>Laporan Antrean Pelayanan</h1>
+    <p>Desa Bukit Raya</p>
+  </div>
+
+  <div class="filters">
+    <div class="field">
+      <label>TANGGAL MULAI</label>
+      <input type="date" id="startDate">
+    </div>
+    <div class="field">
+      <label>TANGGAL SELESAI</label>
+      <input type="date" id="endDate">
+    </div>
+    <div class="actions">
+      <button class="primary" onclick="loadReport()">Tampilkan Laporan</button>
+      <button class="secondary" onclick="exportCSV()">Export CSV</button>
+      <button class="secondary" onclick="window.print()">Cetak</button>
+    </div>
+  </div>
+
+  <div class="summary" id="summary">
+    <div class="stat"><small>TOTAL ANTREAN</small><strong>0</strong></div>
+    <div class="stat"><small>SELESAI</small><strong>0</strong></div>
+    <div class="stat"><small>MENUNGGU</small><strong>0</strong></div>
+    <div class="stat"><small>SEDANG DIPROSES</small><strong>0</strong></div>
+    <div class="stat"><small>DILEWATI</small><strong>0</strong></div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>Rekap per Loket</h2>
+      <div class="table-wrap"><table id="counterTable"><thead><tr><th>Loket</th><th>Petugas</th><th>Total</th><th>Selesai</th><th>Menunggu</th><th>Diproses</th><th>Dilewati</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="panel">
+      <h2>Rekap Jenis Pelayanan</h2>
+      <div class="table-wrap"><table id="serviceTable"><thead><tr><th>Pelayanan</th><th>Loket</th><th>Jumlah</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Detail Antrean</h2>
+    <div class="note" id="periodNote"></div>
+    <div class="table-wrap">
+      <table id="detailTable">
+        <thead><tr><th>Tanggal</th><th>Nomor</th><th>Nama Warga</th><th>Jenis Pelayanan</th><th>Loket</th><th>Status</th><th>Diambil</th><th>Dipanggil</th><th>Mulai Melayani</th><th>Selesai</th><th>Dilewati</th><th>Maksud Audiensi</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://pyawggjlbrvneflpsalj.supabase.co";
+const SUPABASE_KEY="sb_publishable_5SdvMobBB2AvtXcJd_Scxw_rVsoqM8R";
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+let reportRows=[];
+
+function today(){
+  const d=new Date(), z=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate());
+}
+document.getElementById("startDate").value=today();
+document.getElementById("endDate").value=today();
+
+function esc(v){
+  return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+function statusLabel(s){
+  return ({waiting:"Menunggu",called:"Dipanggil",serving:"Sedang dilayani",completed:"Selesai",skipped:"Dilewati"})[s]||s||"-";
+}
+function statusCount(rows,s){return rows.filter(r=>r.status===s).length}
+
+function timeLabel(value){
+  if(!value) return "—";
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("id-ID",{timeZone:"Asia/Makassar",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+}
+
+async function loadReport(){
+  const start=document.getElementById("startDate").value;
+  const end=document.getElementById("endDate").value;
+  if(!start||!end){alert("Tanggal laporan wajib diisi.");return}
+  if(start>end){alert("Tanggal mulai tidak boleh lebih besar dari tanggal selesai.");return}
+
+  const {data,error}=await db.rpc("get_laporan_antrean_v2",{p_start_date:start,p_end_date:end});
+  if(error){alert("Laporan gagal dimuat: "+error.message);return}
+  reportRows=data||[];
+  renderReport(start,end);
+}
+
+function renderReport(start,end){
+  const total=reportRows.length;
+  document.getElementById("summary").innerHTML=[
+    ["TOTAL ANTREAN",total],
+    ["SELESAI",statusCount(reportRows,"completed")],
+    ["MENUNGGU",statusCount(reportRows,"waiting")],
+    ["SEDANG DIPROSES",statusCount(reportRows,"called")+statusCount(reportRows,"serving")],
+    ["DILEWATI",statusCount(reportRows,"skipped")]
+  ].map(x=>`<div class="stat"><small>${x[0]}</small><strong>${x[1]}</strong></div>`).join("");
+
+  const counters={};
+  reportRows.forEach(r=>{
+    const k=r.counter_code||"-";
+    if(!counters[k]) counters[k]={name:r.counter_name||k,staff:r.staff_name||"-",rows:[]};
+    counters[k].rows.push(r);
+  });
+  document.querySelector("#counterTable tbody").innerHTML=Object.entries(counters).map(([code,x])=>{
+    const a=x.rows;
+    return `<tr><td><b>${esc(code)}</b> — ${esc(x.name)}</td><td>${esc(x.staff)}</td><td>${a.length}</td><td>${statusCount(a,"completed")}</td><td>${statusCount(a,"waiting")}</td><td>${statusCount(a,"called")+statusCount(a,"serving")}</td><td>${statusCount(a,"skipped")}</td></tr>`;
+  }).join("")||`<tr><td colspan="7" class="empty">Tidak ada data.</td></tr>`;
+
+  const services={};
+  reportRows.forEach(r=>{
+    const k=r.service_name||"-";
+    if(!services[k]) services[k]={counter:r.counter_code||"-",n:0};
+    services[k].n++;
+  });
+  document.querySelector("#serviceTable tbody").innerHTML=Object.entries(services).sort((a,b)=>b[1].n-a[1].n).map(([name,x])=>
+    `<tr><td>${esc(name)}</td><td>${esc(x.counter)}</td><td><b>${x.n}</b></td></tr>`
+  ).join("")||`<tr><td colspan="3" class="empty">Tidak ada data.</td></tr>`;
+
+  document.querySelector("#detailTable tbody").innerHTML=reportRows.map(r=>
+    `<tr><td>${esc(r.queue_date)}</td><td><b>${esc(r.queue_code)}</b></td><td>${esc(r.customer_name)}</td><td>${esc(r.service_name)}</td><td>${esc(r.counter_code)} — ${esc(r.counter_name)}</td><td><span class="badge">${esc(statusLabel(r.status))}</span></td><td>${timeLabel(r.created_at)}</td><td>${timeLabel(r.called_at)}</td><td>${timeLabel(r.started_at)}</td><td>${timeLabel(r.completed_at)}</td><td>${timeLabel(r.skipped_at)}</td><td>${esc(r.maksud_audiensi||"-")}</td></tr>`
+  ).join("")||`<tr><td colspan="12" class="empty">Tidak ada data pada periode ini.</td></tr>`;
+
+  document.getElementById("periodNote").textContent=`Periode laporan: ${start} s.d. ${end} • ${total} antrean`;
+}
+
+function exportCSV(){
+  if(!reportRows.length){alert("Tampilkan laporan terlebih dahulu.");return}
+  const headers=["Tanggal","Nomor Antrean","Nama Warga","Jenis Pelayanan","Loket","Nama Loket","Status","Diambil","Dipanggil","Mulai Melayani","Selesai","Dilewati","Maksud Audiensi"];
+  const rows=reportRows.map(r=>[r.queue_date,r.queue_code,r.customer_name,r.service_name,r.counter_code,r.counter_name,statusLabel(r.status),timeLabel(r.created_at),timeLabel(r.called_at),timeLabel(r.started_at),timeLabel(r.completed_at),timeLabel(r.skipped_at),r.maksud_audiensi||""]);
+  const csv=[headers,...rows].map(row=>row.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="laporan-antrean-"+document.getElementById("startDate").value+"-"+document.getElementById("endDate").value+".csv";a.click();URL.revokeObjectURL(a.href);
+}
+loadReport();
+</script>
+</body>
+</html>

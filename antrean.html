@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Panel Antrean - Desa Bukit Raya</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#f5f8fb;font-family:Arial,Helvetica,sans-serif;color:#1f2937}
+body{padding:20px}
+.app{max-width:1050px;margin:0 auto}
+.header{text-align:center;margin-bottom:22px}
+.header h1{margin:0 0 7px;color:#1674b8;font-size:32px}
+.header p{margin:0;color:#6b7280}
+.destinations{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.destination{padding:12px 8px;border:2px solid #1674b8;border-radius:12px;background:#fff;color:#1674b8;font-weight:700;font-size:14px;cursor:pointer;min-height:62px}.destination small{font-weight:600;opacity:.8}.destination[data-counter='K'],.destination[data-counter='S']{border-color:#7b5bb5;color:#6a479f}.destination[data-counter='K'].active,.destination[data-counter='S'].active{background:#6a479f;color:#fff}
+.destination.active{background:#1674b8;color:#fff}
+.staff{background:#eef6fb;border-radius:14px;padding:18px;text-align:center;margin-bottom:18px}
+.staff small{color:#6b7280}
+.staff h2{margin:5px 0;color:#1674b8;font-size:23px}
+.staff div{font-size:17px}
+.card{background:#fff;border-radius:18px;box-shadow:0 5px 25px rgba(0,0,0,.09);padding:30px 24px;text-align:center}
+.empty{padding:45px 15px;color:#888;font-size:18px}
+.label{color:#777}
+.number{font-size:82px;line-height:1;font-weight:800;color:#1674b8;margin:10px 0}
+.name{font-size:27px;font-weight:700}
+.service{margin-top:8px;color:#666;line-height:1.45}
+.status{display:inline-block;margin-top:14px;padding:8px 18px;border-radius:30px;background:#eaf5fc;color:#1674b8;font-weight:700}
+.message{min-height:24px;margin:14px 0;text-align:center;font-weight:700}
+.error{display:none;margin:12px 0;padding:14px;border-radius:10px;background:#fff1f1;border:1px solid #e0aaaa;color:#a00000;text-align:left;word-break:break-word}
+.actions{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-top:22px}
+.actions button{border:0;border-radius:11px;padding:16px 12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+.actions button:disabled{opacity:.45;cursor:not-allowed}
+.next{grid-column:span 2;background:#1674b8;font-size:18px!important}
+.recall{background:#f0ad4e}.start{background:#28a745}.done{background:#20a0a0}.skip{background:#dc3545}
+.note{margin-top:15px;color:#777;font-size:13px}
+@media(max-width:760px){
+ body{padding:12px}.destinations{grid-template-columns:repeat(2,1fr)}.number{font-size:64px}.name{font-size:22px}.actions{grid-template-columns:1fr}.next{grid-column:span 1}
+}
+</style></head>
+<body><main class="app">
+<header class="header"><h1>Panel Antrean Pelayanan</h1><p>Desa Bukit Raya</p></header>
+<section class="destinations"><button class="destination" data-counter="A">LOKET A<br><small>Arman</small></button><button class="destination" data-counter="B">LOKET B<br><small>Vikio</small></button><button class="destination" data-counter="C">LOKET C<br><small>Dilla</small></button><button class="destination" data-counter="D">LOKET D<br><small>Ayu</small></button><button class="destination" data-counter="E">LOKET E<br><small>Nia</small></button><button class="destination" data-counter="K">🏛️ KEPALA DESA</button><button class="destination" data-counter="S">🏢 SEKRETARIS DESA</button></section>
+<section class="staff"><small>PETUGAS</small><h2 id="destinationTitle">LOKET B</h2><div id="personName">Vikio</div></section>
+<section class="card">
+<div id="queueContent"><div class="empty">Memuat antrean...</div></div>
+<div id="message" class="message"></div><div id="errorBox" class="error"></div>
+<div class="actions">
+<button id="btnNext" class="next">📢 PANGGIL ANTREAN BERIKUTNYA</button>
+<button id="btnRecall" class="recall" disabled>🔊 PANGGIL ULANG</button>
+<button id="btnStart" class="start" disabled>▶ MULAI MELAYANI</button>
+<button id="btnDone" class="done" disabled>✓ SELESAI</button>
+<button id="btnSkip" class="skip" disabled>⏭ LEWATI</button>
+</div>
+<div class="note">Satu panel untuk Loket A–E dan Audiensi Kepala Desa/Sekretaris Desa. Data diperbarui otomatis setiap 5 detik.</div>
+</section></main>
+<script>
+const SUPABASE_URL='https://pyawggjlbrvneflpsalj.supabase.co';
+const SUPABASE_KEY='sb_publishable_5SdvMobBB2AvtXcJd_Scxw_rVsoqM8R';
+const FIXED_COUNTER=null;
+
+const destinationData={
+ A:{title:"LOKET A",person:"Arman"},
+ B:{title:"LOKET B",person:"Vikio"},
+ C:{title:"LOKET C",person:"Dilla"},
+ D:{title:"LOKET D",person:"Ayu"},
+ E:{title:"LOKET E",person:"Nia"},
+ K:{title:"RUANG KEPALA DESA",person:"Kepala Desa"},
+ S:{title:"RUANG SEKRETARIS DESA",person:"Sekretaris Desa"}
+};
+
+let activeCounter=FIXED_COUNTER||"B";
+let activeQueue=null;
+
+const content=document.getElementById("queueContent");
+const message=document.getElementById("message");
+const errorBox=document.getElementById("errorBox");
+const destinationTitle=document.getElementById("destinationTitle");
+const personName=document.getElementById("personName");
+const btnNext=document.getElementById("btnNext");
+const btnRecall=document.getElementById("btnRecall");
+const btnStart=document.getElementById("btnStart");
+const btnDone=document.getElementById("btnDone");
+const btnSkip=document.getElementById("btnSkip");
+
+function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");}
+function showMessage(t){message.textContent=t||"";}
+function showError(title,e){
+ console.error(title,e);
+ const d=e?.message||e?.details||e?.hint||String(e);
+ errorBox.style.display="block";
+ errorBox.innerHTML="<strong>"+esc(title)+"</strong><br><br>"+esc(d);
+}
+function clearError(){errorBox.style.display="none";errorBox.innerHTML="";}
+
+async function rpc(name,params){
+ const r=await fetch(SUPABASE_URL+"/rest/v1/rpc/"+name,{
+  method:"POST",
+  headers:{apikey:SUPABASE_KEY,Authorization:"Bearer "+SUPABASE_KEY,"Content-Type":"application/json",Accept:"application/json"},
+  body:JSON.stringify(params||{})
+ });
+ const text=await r.text();
+ let data=null;
+ try{data=text?JSON.parse(text):null}catch{data=text}
+ if(!r.ok) throw new Error("HTTP "+r.status+" - "+(typeof data==="string"?data:JSON.stringify(data)));
+ return data;
+}
+
+function renderQueue(data){
+ if(!data||!data.queue_id){
+  activeQueue=null;
+  content.innerHTML='<div class="empty">Tidak ada antrean yang sedang dipanggil.</div>';
+  btnRecall.disabled=btnStart.disabled=btnDone.disabled=btnSkip.disabled=true;
+  return;
+ }
+ activeQueue=data;
+ const status={called:"Menunggu dilayani",serving:"Sedang dilayani"}[data.status]||data.status||"";
+ content.innerHTML=`
+  <div class="label">NOMOR ANTREAN</div>
+  <div class="number">${esc(data.queue_code)}</div>
+  <div class="name">${esc(data.customer_name)}</div>
+  <div class="service">${esc(data.service_name)}</div>
+  <div class="status">${esc(status)}</div>
+ `;
+ btnRecall.disabled=false;
+ btnStart.disabled=data.status!=="called";
+ btnDone.disabled=!["called","serving"].includes(data.status);
+ btnSkip.disabled=!["called","serving"].includes(data.status);
+}
+
+function speak(data){
+ if(!window.speechSynthesis||!data)return;
+ window.speechSynthesis.cancel();
+ const destination=data.counter_name||destinationData[activeCounter]?.title||"tujuan pelayanan";
+ const u=new SpeechSynthesisUtterance("Nomor antrean "+String(data.queue_code||"").replace("-"," ")+", atas nama "+(data.customer_name||"")+", silakan menuju "+destination+".");
+ u.lang="id-ID";u.rate=.85;u.pitch=1;u.volume=1;
+ window.speechSynthesis.speak(u);
+}
+
+async function loadActive(){
+ clearError();
+ try{
+  const raw=await rpc("get_antrean_aktif_loket",{p_counter_code:activeCounter});
+  const data=typeof raw==="string"?JSON.parse(raw):raw;
+  renderQueue(data);
+ }catch(e){
+  content.innerHTML='<div class="empty">Gagal memuat antrean.</div>';
+  showError("KESALAHAN MEMUAT ANTREAN",e);
+ }
+}
+
+async function callNext(){
+ clearError();btnNext.disabled=true;showMessage("Memanggil antrean berikutnya...");
+ try{
+  const raw=await rpc("panggil_antrean",{p_counter_code:activeCounter});
+  if(!Array.isArray(raw)||!raw.length)throw new Error("Tidak ada antrean yang menunggu.");
+  renderQueue(raw[0]);speak(raw[0]);showMessage("Antrean berhasil dipanggil.");
+ }catch(e){showMessage("Gagal memanggil antrean.");showError("KESALAHAN PANGGIL ANTREAN",e)}
+ finally{btnNext.disabled=false}
+}
+async function recall(){
+ if(!activeQueue)return;
+ try{const raw=await rpc("panggil_ulang_antrean",{p_queue_id:activeQueue.queue_id});if(Array.isArray(raw)&&raw.length){renderQueue(raw[0]);speak(raw[0]);showMessage("Antrean dipanggil ulang.")}}
+ catch(e){showError("KESALAHAN PANGGIL ULANG",e)}
+}
+async function start(){
+ if(!activeQueue)return;
+ try{await rpc("mulai_layani_antrean",{p_queue_id:activeQueue.queue_id});showMessage("Antrean sedang dilayani.");await loadActive()}
+ catch(e){showError("KESALAHAN MULAI MELAYANI",e)}
+}
+async function done(){
+ if(!activeQueue)return;
+ try{await rpc("selesaikan_antrean",{p_queue_id:activeQueue.queue_id});activeQueue=null;showMessage("Pelayanan selesai.");await loadActive()}
+ catch(e){showError("KESALAHAN SELESAI",e)}
+}
+async function skip(){
+ if(!activeQueue)return;
+ try{await rpc("lewati_antrean",{p_queue_id:activeQueue.queue_id});activeQueue=null;showMessage("Antrean dilewati.");await loadActive()}
+ catch(e){showError("KESALAHAN LEWATI",e)}
+}
+
+btnNext.addEventListener("click",callNext);
+btnRecall.addEventListener("click",recall);
+btnStart.addEventListener("click",start);
+btnDone.addEventListener("click",done);
+btnSkip.addEventListener("click",skip);
+
+document.querySelectorAll(".destination").forEach(btn=>btn.addEventListener("click",async()=>{
+ activeCounter=btn.dataset.counter;
+ document.querySelectorAll(".destination").forEach(x=>x.classList.remove("active"));
+ btn.classList.add("active");
+ const d=destinationData[activeCounter];
+ destinationTitle.textContent=d.title;
+ personName.textContent=d.person;
+ activeQueue=null;
+ await loadActive();
+}));
+
+(function init(){
+ const d=destinationData[activeCounter];
+ destinationTitle.textContent=d.title;
+ personName.textContent=d.person;
+ document.querySelectorAll(".destination").forEach(btn=>btn.classList.toggle("active",btn.dataset.counter===activeCounter));
+ loadActive();
+ setInterval(loadActive,5000);
+})();
+</script></body></html>
