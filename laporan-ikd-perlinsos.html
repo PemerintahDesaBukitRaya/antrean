@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laporan IKD & Perlinsos - Desa Bukit Raya</title>
+<style>
+:root{
+  --blue:#073b82;--blue2:#126bb0;--green:#198754;--orange:#d99018;
+  --red:#c93645;--cyan:#2b8c91;--light:#f3f7fb;--white:#fff;
+  --text:#17324d;--muted:#718096;--border:#dce6ef;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#f3f7fb;color:var(--text);font-family:Arial,Helvetica,sans-serif}
+.container{width:min(1500px,calc(100% - 28px));margin:auto;padding:24px 0 40px}
+.header{background:linear-gradient(135deg,var(--blue),#0b65ad);color:#fff;border-radius:18px;padding:23px 27px;box-shadow:0 9px 25px rgba(16,53,92,.12)}
+.header h1{margin:0 0 6px;font-size:clamp(23px,3vw,34px)}
+.header p{margin:0;color:rgba(255,255,255,.88)}
+.filters{margin-top:16px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:15px;display:flex;align-items:end;gap:12px;flex-wrap:wrap;box-shadow:0 7px 20px rgba(16,53,92,.07)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;font-weight:900;color:var(--muted)}
+.field input{border:1px solid #cbd7e4;border-radius:9px;padding:10px 12px;font-size:14px}
+button{border:0;border-radius:9px;padding:10px 15px;font-weight:900;cursor:pointer}
+.primary{background:var(--blue2);color:#fff}.secondary{background:#eaf2fb;color:var(--blue)}
+.export{background:#198754;color:#fff}.print{background:#eef1f4;color:#445}
+.status{font-size:13px;color:var(--muted);min-height:18px;margin:11px 2px}
+.status.error{color:#b4232e}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:10px}
+.stat{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(16,53,92,.06)}
+.stat .label{font-size:12px;font-weight:800;color:var(--muted)}.stat .value{font-size:30px;font-weight:950;margin-top:5px;color:var(--blue)}
+.stat.done .value{color:var(--green)}.stat.wait .value{color:var(--orange)}.stat.skip .value{color:var(--red)}.stat.serving .value{color:var(--cyan)}
+.section{margin-top:18px;background:#fff;border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(16,53,92,.06)}
+.section-head{padding:14px 16px;background:#f6f9fc;border-bottom:1px solid var(--border);font-weight:950;color:var(--blue)}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:1050px}
+th,td{padding:10px 11px;border-bottom:1px solid #e8eef4;text-align:left;font-size:12px;vertical-align:top}
+th{background:#f9fbfd;color:#526579;font-size:11px;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.badge{display:inline-block;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900;white-space:nowrap}
+.b-waiting{background:#fff2c2;color:#765900}.b-called{background:#fff0ce;color:#805d00}
+.b-serving{background:#e4f7eb;color:#14733f}.b-completed{background:#dff2e7;color:#176b3c}.b-skipped{background:#fde4e7;color:#8c2935}
+.empty{text-align:center;padding:30px;color:var(--muted)}
+.summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.summary .section{margin-top:0}
+.small{font-size:11px;color:var(--muted)}
+@media(max-width:950px){.stats{grid-template-columns:repeat(3,1fr)}.summary{grid-template-columns:1fr}}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}.container{width:calc(100% - 16px);padding-top:12px}}
+@media print{
+  body{background:#fff}.container{width:100%;padding:0}.header{box-shadow:none;border-radius:0}
+  .filters,.status,.export,.print{display:none!important}.section,.stat{box-shadow:none}
+  .stats{grid-template-columns:repeat(5,1fr)}.section{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header class="header">
+  <h1>Laporan Pelayanan Aktivasi IKD & Pendaftaran Perlinsos</h1>
+  <p>Pemerintah Desa Bukit Raya • Laporan khusus kegiatan pelayanan</p>
+</header>
+
+<section class="filters">
+  <div class="field"><label for="startDate">Tanggal Mulai</label><input id="startDate" type="date"></div>
+  <div class="field"><label for="endDate">Tanggal Akhir</label><input id="endDate" type="date"></div>
+  <button id="loadBtn" class="primary">TAMPILKAN LAPORAN</button>
+  <button id="todayBtn" class="secondary">HARI INI</button>
+  <button id="exportBtn" class="export">EKSPOR CSV</button>
+  <button id="printBtn" class="print">CETAK</button>
+</section>
+
+<div id="status" class="status">Memuat laporan...</div>
+
+<section class="stats">
+  <div class="stat"><div class="label">TOTAL PEMOHON</div><div id="total" class="value">0</div></div>
+  <div class="stat done"><div class="label">SELESAI</div><div id="completed" class="value">0</div></div>
+  <div class="stat serving"><div class="label">SEDANG DILAYANI</div><div id="serving" class="value">0</div></div>
+  <div class="stat wait"><div class="label">MENUNGGU / DIPANGGIL</div><div id="waiting" class="value">0</div></div>
+  <div class="stat skip"><div class="label">DILEWATI</div><div id="skipped" class="value">0</div></div>
+</section>
+
+<div class="summary" style="margin-top:18px">
+  <section class="section">
+    <div class="section-head">Rekap Meja Pelayanan</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Meja</th><th>Total</th><th>Selesai</th><th>Sedang / Dipanggil</th><th>Dilewati</th></tr></thead>
+        <tbody id="deskBody"></tbody>
+      </table>
+    </div>
+  </section>
+  <section class="section">
+    <div class="section-head">Ringkasan Waktu</div>
+    <div class="table-wrap">
+      <table>
+        <tbody>
+          <tr><th>Rata-rata waktu tunggu hingga panggilan</th><td id="avgWait">—</td></tr>
+          <tr><th>Rata-rata lama pelayanan</th><td id="avgService">—</td></tr>
+          <tr><th>Pelayanan tercepat</th><td id="minService">—</td></tr>
+          <tr><th>Pelayanan terlama</th><td id="maxService">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<section class="section">
+  <div class="section-head">Detail Antrean</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>No.</th><th>Antrean</th><th>Nama Pemohon</th><th>Asal Desa/Kelurahan</th>
+          <th>Meja</th><th>Status</th><th>Ambil Nomor</th><th>Panggilan Pertama</th>
+          <th>Mulai Dilayani</th><th>Selesai</th><th>Lama Pelayanan</th><th>Jumlah Panggilan</th>
+        </tr>
+      </thead>
+      <tbody id="detailBody"></tbody>
+    </table>
+  </div>
+</section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://pyawggjlbrvneflpsalj.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_5SdvMobBB2AvtXcJd_Scxw_rVsoqM8R";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+
+const startDate=document.getElementById("startDate");
+const endDate=document.getElementById("endDate");
+const statusEl=document.getElementById("status");
+const detailBody=document.getElementById("detailBody");
+const deskBody=document.getElementById("deskBody");
+let rows=[];
+
+function pad(n){return String(n).padStart(2,"0")}
+function today(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`}
+startDate.value=today();endDate.value=today();
+
+function esc(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+
+function formatDateTime(v){
+  if(!v)return "—";
+  const d=new Date(v);
+  if(Number.isNaN(d.getTime()))return "—";
+  return d.toLocaleString("id-ID",{dateStyle:"short",timeStyle:"medium"});
+}
+function msBetween(a,b){
+  if(!a||!b)return null;
+  const x=new Date(a).getTime(),y=new Date(b).getTime();
+  return Number.isFinite(x)&&Number.isFinite(y)&&y>=x?y-x:null;
+}
+function duration(ms){
+  if(ms==null)return "—";
+  let sec=Math.round(ms/1000),h=Math.floor(sec/3600);sec%=3600;
+  let m=Math.floor(sec/60);sec%=60;
+  if(h)return `${h}j ${m}m ${sec}d`;
+  if(m)return `${m}m ${sec}d`;
+  return `${sec}d`;
+}
+function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null}
+function statusBadge(s){
+  const labels={waiting:"MENUNGGU",called:"DIPANGGIL",serving:"SEDANG DILAYANI",completed:"SELESAI",skipped:"DILEWATI"};
+  const cls={waiting:"b-waiting",called:"b-called",serving:"b-serving",completed:"b-completed",skipped:"b-skipped"};
+  return `<span class="badge ${cls[s]||""}">${labels[s]||s||"—"}</span>`;
+}
+
+function renderStats(){
+  const total=rows.length;
+  const completed=rows.filter(r=>r.status==="completed").length;
+  const serving=rows.filter(r=>r.status==="serving"||r.status==="called").length;
+  const waiting=rows.filter(r=>r.status==="waiting").length;
+  const skipped=rows.filter(r=>r.status==="skipped").length;
+  document.getElementById("total").textContent=total;
+  document.getElementById("completed").textContent=completed;
+  document.getElementById("serving").textContent=serving;
+  document.getElementById("waiting").textContent=waiting;
+  document.getElementById("skipped").textContent=skipped;
+
+  const waits=rows.map(r=>msBetween(r.created_at,r.first_called_at)).filter(x=>x!=null);
+  const services=rows.map(r=>msBetween(r.started_at,r.completed_at)).filter(x=>x!=null);
+  document.getElementById("avgWait").textContent=duration(avg(waits));
+  document.getElementById("avgService").textContent=duration(avg(services));
+  document.getElementById("minService").textContent=duration(services.length?Math.min(...services):null);
+  document.getElementById("maxService").textContent=duration(services.length?Math.max(...services):null);
+}
+
+function renderDeskSummary(){
+  const map=new Map();
+  rows.forEach(r=>{
+    const key=r.meja_pelayanan==null?"Belum ditentukan":`Meja ${r.meja_pelayanan}`;
+    if(!map.has(key))map.set(key,{total:0,done:0,active:0,skip:0,order:r.meja_pelayanan??999});
+    const x=map.get(key);x.total++;
+    if(r.status==="completed")x.done++;
+    if(r.status==="called"||r.status==="serving")x.active++;
+    if(r.status==="skipped")x.skip++;
+  });
+  const arr=[...map.entries()].sort((a,b)=>a[1].order-b[1].order);
+  deskBody.innerHTML=arr.length?arr.map(([key,x])=>`
+    <tr><td><strong>${esc(key)}</strong></td><td>${x.total}</td><td>${x.done}</td><td>${x.active}</td><td>${x.skip}</td></tr>
+  `).join(""):`<tr><td colspan="5" class="empty">Belum ada data.</td></tr>`;
+}
+
+function renderDetails(){
+  if(!rows.length){
+    detailBody.innerHTML='<tr><td colspan="12" class="empty">Tidak ada data pada rentang tanggal tersebut.</td></tr>';
+    return;
+  }
+  detailBody.innerHTML=rows.map((r,i)=>{
+    const serviceMs=msBetween(r.started_at,r.completed_at);
+    return `<tr>
+      <td>${i+1}</td>
+      <td><strong>${esc(r.queue_code)}</strong></td>
+      <td>${esc(r.customer_name)}</td>
+      <td>${esc(r.asal_desa_kelurahan)}</td>
+      <td>${r.meja_pelayanan==null?"—":"Meja "+esc(r.meja_pelayanan)}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td>${formatDateTime(r.created_at)}</td>
+      <td>${formatDateTime(r.first_called_at)}</td>
+      <td>${formatDateTime(r.started_at)}</td>
+      <td>${formatDateTime(r.completed_at)}</td>
+      <td>${duration(serviceMs)}</td>
+      <td>${esc(r.jumlah_panggilan??0)}</td>
+    </tr>`;
+  }).join("");
+}
+
+async function loadReport(){
+  const start=startDate.value,end=endDate.value;
+  if(!start||!end){statusEl.textContent="Tanggal mulai dan akhir wajib diisi.";statusEl.className="status error";return}
+  if(start>end){statusEl.textContent="Tanggal mulai tidak boleh setelah tanggal akhir.";statusEl.className="status error";return}
+  statusEl.textContent="Memuat data...";
+  statusEl.className="status";
+  const {data,error}=await db.rpc("get_laporan_ikd_perlinsos",{p_start_date:start,p_end_date:end});
+  if(error){
+    statusEl.textContent="Gagal memuat laporan: "+error.message;
+    statusEl.className="status error";
+    rows=[];renderStats();renderDeskSummary();renderDetails();return;
+  }
+  rows=data||[];
+  renderStats();renderDeskSummary();renderDetails();
+  statusEl.textContent=`Menampilkan ${rows.length} data • ${start} s.d. ${end}`;
+}
+
+function csvCell(v){return `"${String(v??"").replaceAll('"','""')}"`}
+function exportCSV(){
+  if(!rows.length){alert("Tidak ada data untuk diekspor.");return}
+  const header=["No","Antrean","Nama Pemohon","Asal Desa/Kelurahan","Meja Pelayanan","Status","Ambil Nomor","Panggilan Pertama","Mulai Dilayani","Selesai","Lama Pelayanan","Jumlah Panggilan"];
+  const body=rows.map((r,i)=>[
+    i+1,r.queue_code,r.customer_name,r.asal_desa_kelurahan,
+    r.meja_pelayanan==null?"":"Meja "+r.meja_pelayanan,
+    r.status,formatDateTime(r.created_at),formatDateTime(r.first_called_at),
+    formatDateTime(r.started_at),formatDateTime(r.completed_at),
+    duration(msBetween(r.started_at,r.completed_at)),r.jumlah_panggilan??0
+  ]);
+  const csv="\uFEFF"+[header,...body].map(row=>row.map(csvCell).join(",")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=`laporan-ikd-perlinsos-${startDate.value}-${endDate.value}.csv`;
+  a.click();URL.revokeObjectURL(url);
+}
+
+document.getElementById("loadBtn").onclick=loadReport;
+document.getElementById("todayBtn").onclick=()=>{startDate.value=today();endDate.value=today();loadReport()};
+document.getElementById("exportBtn").onclick=exportCSV;
+document.getElementById("printBtn").onclick=()=>window.print();
+loadReport();
+</script>
+</body>
+</html>
