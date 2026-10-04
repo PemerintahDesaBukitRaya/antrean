@@ -19,7 +19,7 @@ body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(
 .card h2{margin:0 0 6px;color:var(--blue);font-size:23px}
 .card-subtitle{margin:0 0 20px;color:var(--muted);font-size:14px;line-height:1.5}
 label{display:block;font-weight:700;margin:16px 0 8px}
-input,select{width:100%;border:1px solid #cbd7e4;border-radius:12px;padding:13px 14px;font-size:15px;outline:none;background:#fff}
+input,select,textarea{width:100%;border:1px solid #cbd7e4;border-radius:12px;padding:13px 14px;font-size:15px;outline:none;background:#fff}
 input:focus,select:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(18,97,181,.10)}
 .primary-btn{width:100%;border:0;border-radius:13px;padding:14px 16px;margin-top:20px;background:var(--yellow);color:#17324d;font-size:16px;font-weight:800;cursor:pointer}
 .primary-btn:disabled{opacity:.6;cursor:not-allowed}
@@ -82,6 +82,11 @@ input:focus,select:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(18,
 <textarea id="maksudAudiensi" maxlength="1000" placeholder="Jelaskan tujuan atau maksud audiensi" rows="5" style="width:100%;border:1px solid #cbd7e4;border-radius:12px;padding:13px 14px;font-size:15px;outline:none;background:#fff;resize:vertical;font-family:inherit"></textarea>
 <div style="margin-top:6px;color:var(--muted);font-size:12px;line-height:1.45">Wajib diisi untuk pengajuan audiensi.</div>
 </div>
+<div id="asalDesaBox" style="display:none">
+ <label for="asalDesaKelurahan">Asal Desa/Kelurahan <span style="color:var(--danger)">*</span></label>
+ <div style="margin-top:-3px;margin-bottom:7px;color:var(--muted);font-size:12px;line-height:1.45">Contoh: Desa Bukit Raya</div>
+ <input id="asalDesaKelurahan" type="text" maxlength="150" placeholder="Masukkan asal desa/kelurahan" autocomplete="off">
+ </div>
 <button class="primary-btn" id="takeQueueBtn" onclick="ambilNomor()">AMBIL NOMOR ANTREAN</button>
 <div id="statusBox" class="status"></div>
 <div id="ticket" class="ticket">
@@ -116,7 +121,7 @@ const SUPABASE_PUBLISHABLE_KEY="sb_publishable_5SdvMobBB2AvtXcJd_Scxw_rVsoqM8R";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 
 const CATEGORY_CONFIG=[
- {name:"Administrasi Kependudukan",code:"B",info:"13 jenis layanan"},
+ {name:"Administrasi Kependudukan",code:"B",info:"14 jenis layanan"},
  {name:"Administrasi Pernikahan",code:"D",info:"2 jenis layanan"},
  {name:"Administrasi Umum",code:"C",info:"9 jenis layanan"},
  {name:"Pajak Bumi dan Bangunan",code:"A",info:"4 jenis layanan"},
@@ -138,7 +143,7 @@ const SERVICE_INFO={
 "Penerbitan Surat Keterangan Domisili bagi Penduduk Kabupaten Penajam Paser Utara Berdomisili Sementara",
 "Perubahan Elemen Data Kependudukan",
 "Pindah RT, Pindah Desa/Kelurahan, Pindah Kecamatan, dan Pindah Kabupaten/Kota",
-"Pisah Kartu Keluarga karena Perceraian"],
+"Pisah Kartu Keluarga karena Perceraian","Pelayanan Aktivasi IKD dan Pendaftaran Perlinsos"],
 "Administrasi Pernikahan":["Penerbitan Pengantar Surat Nikah","Penerbitan Surat Keterangan Status Perkawinan"],
 "Administrasi Umum":[
 "Legalisasi Dokumen","Penerbitan Pengantar Surat Izin Keramaian",
@@ -165,6 +170,8 @@ const serviceSelect=document.getElementById("serviceSelect");
 const customerName=document.getElementById("customerName");
 const maksudAudiensi=document.getElementById("maksudAudiensi");
 const audiensiBox=document.getElementById("audiensiBox");
+const asalDesaBox=document.getElementById("asalDesaBox");
+const asalDesaKelurahan=document.getElementById("asalDesaKelurahan");
 const takeQueueBtn=document.getElementById("takeQueueBtn");
 const statusBox=document.getElementById("statusBox");
 const ticket=document.getElementById("ticket");
@@ -178,6 +185,7 @@ function status(msg,type){statusBox.textContent=msg;statusBox.className="status 
 function configFor(name){return CATEGORY_CONFIG.find(x=>x.name===name)||null}
 function serviceByName(name){return pelayanan.find(x=>x.name===name)||null}
 function isAudiensiService(item){return !!item && (item.name==="Audiensi Bersama Kepala Desa" || item.name==="Audiensi Bersama Sekretaris Desa")}
+function isIkdPerlinsosService(item){return !!item && item.name==="Pelayanan Aktivasi IKD dan Pendaftaran Perlinsos"}
 function tujuanText(item){
  if(!item)return "-";
  if(item.counters?.code==="K")return "Ruang Kepala Desa";
@@ -211,6 +219,8 @@ function selectCategory(name){
  serviceList.innerHTML=names.length?names.map(x=>'<div class="service-item"><span class="dot"></span><span>'+esc(x)+'</span></div>').join(""):'<div class="empty">Informasi layanan belum tersedia.</div>';
  audiensiBox.style.display="none";
  maksudAudiensi.value="";
+  asalDesaBox.style.display="none";
+  asalDesaKelurahan.value="";
 }
 
 function renderInfo(item){
@@ -221,22 +231,30 @@ function renderInfo(item){
  const names=SERVICE_INFO[cfg?.name]||[item.name];
  serviceList.innerHTML=names.map(x=>'<div class="service-item"><span class="dot"></span><span>'+esc(x)+'</span></div>').join("");
  audiensiBox.style.display=isAudiensiService(item)?"block":"none";
+  asalDesaBox.style.display=isIkdPerlinsosService(item)?"block":"none";
+  if(!isIkdPerlinsosService(item)) asalDesaKelurahan.value="";
 }
 
 categorySelect.onchange=function(){
- if(!this.value){serviceSelect.disabled=true;serviceSelect.innerHTML='<option value="">Pilih kategori terlebih dahulu</option>';audiensiBox.style.display="none";return}
+ if(!this.value){serviceSelect.disabled=true;serviceSelect.innerHTML='<option value="">Pilih kategori terlebih dahulu</option>';audiensiBox.style.display="none";asalDesaBox.style.display="none";asalDesaKelurahan.value="";return}
  selectCategory(this.value);
 };
 
 serviceSelect.onchange=function(){
- const item=pelayanan.find(x=>String(x.id)===String(this.value));
- renderInfo(item);
- if(item && isAudiensiService(item)){
-  audiensiBox.style.display="block";
- }else{
-  audiensiBox.style.display="none";
-  maksudAudiensi.value="";
- }
+  const item=pelayanan.find(x=>String(x.id)===String(this.value));
+  renderInfo(item);
+  if(item && isAudiensiService(item)){
+   audiensiBox.style.display="block";
+  }else{
+   audiensiBox.style.display="none";
+   maksudAudiensi.value="";
+  }
+  if(item && isIkdPerlinsosService(item)){
+   asalDesaBox.style.display="block";
+  }else{
+   asalDesaBox.style.display="none";
+   asalDesaKelurahan.value="";
+  }
 };
 
 async function loadPelayanan(){
@@ -257,32 +275,50 @@ async function ambilNomor(){
  const serviceId=serviceSelect.value;
  const item=pelayanan.find(x=>String(x.id)===String(serviceId));
  const maksud=maksudAudiensi.value.trim();
+ const asalDesa=asalDesaKelurahan.value.trim();
+
  if(!nama){status("Nama pemohon wajib diisi.","error");customerName.focus();return}
  if(!serviceId || !item){status("Silakan pilih jenis pelayanan terlebih dahulu.","error");serviceSelect.focus();return}
  if(isAudiensiService(item) && !maksud){status("Tujuan/maksud audiensi wajib diisi.","error");maksudAudiensi.focus();return}
+ if(isIkdPerlinsosService(item) && !asalDesa){status("Asal Desa/Kelurahan wajib diisi.","error");asalDesaKelurahan.focus();return}
+
  takeQueueBtn.disabled=true;takeQueueBtn.textContent="MEMPROSES...";
  try{
-  const {data,error}=await db.rpc("ambil_nomor_antrean",{
-   p_service_id:Number(serviceId),
-   p_customer_name:nama,
-   p_maksud_audiensi:maksud||null
-  });
-  if(error)throw new Error(error.message||"Gagal mengambil nomor antrean.");
-  const r=Array.isArray(data)?data[0]:data;
-  if(!r||!r.queue_code)throw new Error("Nomor antrean tidak berhasil dibuat.");
-  document.getElementById("ticketNumber").textContent=r.queue_code;
-  document.getElementById("ticketName").textContent=r.customer_name;
-  document.getElementById("ticketService").textContent=r.service_name||"Pelayanan";
-  document.getElementById("ticketCounter").textContent=r.counter_code==="K"?"Ruang Kepala Desa":(r.counter_code==="S"?"Ruang Sekretaris Desa":"Loket "+(r.counter_code||"-"));
-  ticket.classList.add("show");
-  status("Nomor antrean berhasil diambil. Silakan menunggu panggilan.","success");
-  maksudAudiensi.value="";
+   let data,error;
+   if(isIkdPerlinsosService(item)){
+     ({data,error}=await db.rpc("ambil_antrean_ikd_perlinsos",{
+       p_customer_name:nama,
+       p_asal_desa_kelurahan:asalDesa
+     }));
+   }else{
+     ({data,error}=await db.rpc("ambil_nomor_antrean",{
+       p_service_id:Number(serviceId),
+       p_customer_name:nama,
+       p_maksud_audiensi:maksud||null
+     }));
+   }
+
+   if(error)throw new Error(error.message||"Gagal mengambil nomor antrean.");
+   const r=Array.isArray(data)?data[0]:data;
+   if(!r||!r.queue_code)throw new Error("Nomor antrean tidak berhasil dibuat.");
+
+   document.getElementById("ticketNumber").textContent=r.queue_code;
+   document.getElementById("ticketName").textContent=r.customer_name;
+   document.getElementById("ticketService").textContent=r.service_name||"Pelayanan";
+   document.getElementById("ticketCounter").textContent=isIkdPerlinsosService(item)
+     ?"Meja Pelayanan"
+     :(r.counter_code==="K"?"Ruang Kepala Desa":(r.counter_code==="S"?"Ruang Sekretaris Desa":"Loket "+(r.counter_code||"-")));
+
+   ticket.classList.add("show");
+   status("Nomor antrean berhasil diambil. Silakan menunggu panggilan.","success");
+   maksudAudiensi.value="";
+   asalDesaKelurahan.value="";
  }catch(e){
-  console.error(e);
-  status(e.message||"Terjadi kesalahan. Silakan coba lagi.","error");
+   console.error(e);
+   status(e.message||"Terjadi kesalahan. Silakan coba lagi.","error");
  }finally{
-  takeQueueBtn.disabled=false;
-  takeQueueBtn.textContent="AMBIL NOMOR ANTREAN";
+   takeQueueBtn.disabled=false;
+   takeQueueBtn.textContent="AMBIL NOMOR ANTREAN";
  }
 }
 
