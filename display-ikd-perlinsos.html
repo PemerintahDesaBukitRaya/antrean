@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Display IKD & Perlinsos - Desa Bukit Raya</title>
+<style>
+:root{
+  --blue:#073b82;--blue2:#126bb0;--yellow:#f5c400;
+  --green:#1c9a58;--orange:#e39a20;--red:#c93645;
+  --light:#edf4fb;--white:#fff;--text:#17324d;--muted:#718096;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100vh;font-family:Arial,Helvetica,sans-serif;
+  background:linear-gradient(135deg,#edf5fc 0%,#f9fbfd 100%);
+  color:var(--text);
+}
+.header{
+  background:linear-gradient(135deg,var(--blue),#0b65ad);
+  color:#fff;padding:22px 30px;text-align:center;
+  box-shadow:0 5px 18px rgba(10,55,100,.16);
+}
+.header .eyebrow{font-size:13px;font-weight:800;letter-spacing:.08em;opacity:.9}
+.header h1{margin:5px 0 0;font-size:clamp(24px,3vw,42px);line-height:1.1}
+.toolbar{
+  display:flex;justify-content:center;align-items:center;gap:10px;
+  padding:12px;flex-wrap:wrap;
+}
+.toolbar button{
+  border:0;border-radius:10px;padding:10px 16px;font-weight:900;cursor:pointer;
+}
+.sound-on{background:var(--blue);color:#fff}
+.sound-off{background:#e8eef5;color:var(--blue)}
+.clock{font-weight:800;color:var(--muted);font-size:14px}
+.grid{
+  width:min(1500px,calc(100% - 28px));margin:0 auto 24px;
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;
+}
+.card{
+  background:#fff;border:1px solid #dce6ef;border-radius:18px;
+  overflow:hidden;box-shadow:0 9px 25px rgba(16,53,92,.10);
+  min-height:255px;display:flex;flex-direction:column;
+}
+.card-head{
+  padding:12px 15px;background:#f4f8fc;border-bottom:1px solid #dce6ef;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.desk{font-weight:900;color:var(--blue);font-size:18px}
+.status{
+  font-size:11px;font-weight:900;padding:6px 9px;border-radius:999px;
+  background:#edf1f5;color:#718096;
+}
+.status.called{background:#fff0ce;color:#805d00}
+.status.serving{background:#e4f7eb;color:#14733f}
+.status.done{background:#dff2f2;color:#176267}
+.card-body{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:17px;
+}
+.number{font-size:clamp(35px,4vw,58px);font-weight:950;line-height:1;color:var(--blue)}
+.name{font-size:clamp(16px,1.5vw,22px);font-weight:900;margin-top:9px;text-transform:uppercase}
+.origin{font-size:12px;color:var(--muted);margin-top:5px}
+.call-text{
+  margin-top:15px;font-size:clamp(14px,1.4vw,19px);font-weight:900;
+  color:var(--blue2);line-height:1.2;
+}
+.idle-number{font-size:52px;font-weight:900;color:#a1afbd}
+.idle-text{margin-top:7px;font-weight:800;color:#8b98a7}
+.done-wrap .number{color:var(--green)}
+.done-wrap .call-text{color:var(--green)}
+.footer{text-align:center;color:#8190a0;font-size:12px;padding:0 0 18px}
+.notice{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+  background:rgba(7,59,130,.95);color:#fff;padding:12px 18px;border-radius:999px;
+  font-size:13px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.18);
+  opacity:0;pointer-events:none;transition:.2s;
+}
+.notice.show{opacity:1}
+@media(max-width:1050px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.grid{grid-template-columns:1fr}.card{min-height:220px}}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="eyebrow">PELAYANAN AKTIVASI IKD DAN PENDAFTARAN PERLINSOS</div>
+  <h1>Silakan Menuju Meja Pelayanan</h1>
+</header>
+
+<div class="toolbar">
+  <button id="soundBtn" class="sound-on">🔊 AKTIFKAN SUARA</button>
+  <button id="refreshBtn" class="sound-off">↻ MUAT ULANG</button>
+  <span id="clock" class="clock">--:--:--</span>
+</div>
+
+<main id="grid" class="grid"></main>
+<div class="footer">Pemerintah Desa Bukit Raya</div>
+<div id="notice" class="notice">Suara panggilan aktif</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL="https://pyawggjlbrvneflpsalj.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_5SdvMobBB2AvtXcJd_Scxw_rVsoqM8R";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+
+const grid=document.getElementById("grid");
+const soundBtn=document.getElementById("soundBtn");
+const refreshBtn=document.getElementById("refreshBtn");
+const clock=document.getElementById("clock");
+const notice=document.getElementById("notice");
+
+let deskCount=Number(localStorage.getItem("ikdDeskCount")||8);
+deskCount=Math.max(1,Math.min(50,deskCount));
+
+let previousRows=[];
+let doneCards=new Map();
+let soundEnabled=false;
+let audioContext=null;
+
+function esc(v){
+  return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;")
+    .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+
+function statusText(status){
+  if(status==="called") return "DIPANGGIL";
+  if(status==="serving") return "SEDANG DILAYANI";
+  if(status==="done") return "SELESAI";
+  return "SIAP";
+}
+
+function renderRow(row){
+  const done=doneCards.get(row.meja_pelayanan);
+  if(done && Date.now()<done.until){
+    return cardHtml({
+      meja_pelayanan:row.meja_pelayanan,
+      queue_code:done.queue_code,
+      customer_name:done.customer_name,
+      asal_desa_kelurahan:done.asal_desa_kelurahan,
+      status:"done"
+    });
+  }
+
+  if(row.status==="called" || row.status==="serving"){
+    return cardHtml(row);
+  }
+
+  return `
+    <section class="card">
+      <div class="card-head">
+        <div class="desk">MEJA ${row.meja_pelayanan}</div>
+        <div class="status">SIAP</div>
+      </div>
+      <div class="card-body">
+        <div>
+          <div class="idle-number">0</div>
+          <div class="idle-text">MENUNGGU ANTREAN</div>
+        </div>
+      </div>
+    </section>`;
+}
+
+function cardHtml(row){
+  const done=row.status==="done";
+  const called=row.status==="called";
+  const badge=statusText(row.status);
+  return `
+    <section class="card ${done?"done-wrap":""}">
+      <div class="card-head">
+        <div class="desk">MEJA ${row.meja_pelayanan}</div>
+        <div class="status ${done?"done":(called?"called":"serving")}">${badge}</div>
+      </div>
+      <div class="card-body">
+        <div>
+          <div class="number">${esc(row.queue_code)}</div>
+          <div class="name">${esc(row.customer_name)}</div>
+          <div class="origin">${esc(row.asal_desa_kelurahan||"")}</div>
+          <div class="call-text">${done?"PELAYANAN SELESAI":(called?"SILAKAN MENUJU MEJA PELAYANAN":"SEDANG DILAYANI")}</div>
+        </div>
+      </div>
+    </section>`;
+}
+
+function render(rows){
+  const map=new Map(rows.map(r=>[Number(r.meja_pelayanan),r]));
+  const cards=[];
+  for(let i=1;i<=deskCount;i++){
+    cards.push(renderRow(map.get(i)||{
+      meja_pelayanan:i,queue_code:"0",customer_name:null,
+      asal_desa_kelurahan:null,status:"idle"
+    }));
+  }
+  grid.innerHTML=cards.join("");
+}
+
+function normalizeRows(data){
+  return (data||[]).map(r=>({...r,meja_pelayanan:Number(r.meja_pelayanan)}));
+}
+
+function speakText(text){
+  if(!soundEnabled || !("speechSynthesis" in window)) return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="id-ID";
+  u.rate=.88;
+  u.pitch=1;
+  u.volume=1;
+  window.speechSynthesis.speak(u);
+}
+
+function digitWords(code){
+  const m=String(code||"").match(/(\d{3})$/);
+  if(!m) return String(code||"");
+  return m[1].split("").map(x=>({
+    "0":"nol","1":"satu","2":"dua","3":"tiga","4":"empat",
+    "5":"lima","6":"enam","7":"tujuh","8":"delapan","9":"sembilan"
+  }[x]||x)).join(" ");
+}
+
+function announce(row){
+  if(!soundEnabled) return;
+  const numberWords=digitWords(row.queue_code);
+  const name=String(row.customer_name||"").trim();
+  const text=`Nomor antrean I K D ${numberWords}, atas nama ${name}, silakan menuju meja pelayanan ${row.meja_pelayanan}.`;
+
+  playChime(()=>{
+    speakText(text);
+  });
+}
+
+function playChime(after){
+  if(!soundEnabled){after();return;}
+  try{
+    if(!audioContext) audioContext=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioContext.state==="suspended") audioContext.resume();
+
+    const now=audioContext.currentTime;
+    const notes=[659.25,783.99,987.77];
+    notes.forEach((freq,i)=>{
+      const osc=audioContext.createOscillator();
+      const gain=audioContext.createGain();
+      osc.type="sine";
+      osc.frequency.value=freq;
+      gain.gain.setValueAtTime(.0001,now+i*.16);
+      gain.gain.exponentialRampToValueAtTime(.18,now+i*.16+.025);
+      gain.gain.exponentialRampToValueAtTime(.0001,now+i*.16+.13);
+      osc.connect(gain);gain.connect(audioContext.destination);
+      osc.start(now+i*.16);osc.stop(now+i*.16+.14);
+    });
+    setTimeout(after,650);
+  }catch(e){
+    after();
+  }
+}
+
+function showNotice(text){
+  notice.textContent=text;
+  notice.classList.add("show");
+  setTimeout(()=>notice.classList.remove("show"),1800);
+}
+
+function detectChanges(rows){
+  const oldMap=new Map(previousRows.map(r=>[Number(r.meja_pelayanan),r]));
+
+  rows.forEach(row=>{
+    const old=oldMap.get(row.meja_pelayanan);
+
+    // New first call or recall: called_at changes.
+    if((row.status==="called" || row.status==="serving") && row.last_call_at){
+      const oldCall=old?.last_call_at||"";
+      if(row.last_call_at!==oldCall){
+        // Avoid announcing the initial page state. Announce only after
+        // the display has already established its baseline.
+        if(previousRows.length>0) announce(row);
+      }
+    }
+
+    // Active queue disappeared: show SELESAI briefly.
+    if(old && (old.status==="called" || old.status==="serving")
+       && row.status==="idle"){
+      doneCards.set(row.meja_pelayanan,{
+        queue_code:old.queue_code,
+        customer_name:old.customer_name,
+        asal_desa_kelurahan:old.asal_desa_kelurahan,
+        until:Date.now()+5000
+      });
+    }
+  });
+
+  previousRows=rows;
+}
+
+async function load(){
+  const {data,error}=await db.rpc("get_meja_ikd_perlinsos",{p_jumlah_meja:deskCount});
+  if(error){
+    grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:30px;color:#b4232e;font-weight:800">Gagal memuat display: ${esc(error.message)}</div>`;
+    return;
+  }
+  const rows=normalizeRows(data);
+  detectChanges(rows);
+  render(rows);
+
+  // Re-render after completed cards expire.
+  for(const [desk,item] of doneCards){
+    if(Date.now()>=item.until) doneCards.delete(desk);
+  }
+}
+
+soundBtn.onclick=()=>{
+  soundEnabled=!soundEnabled;
+  if(soundEnabled){
+    try{
+      audioContext=new (window.AudioContext||window.webkitAudioContext)();
+      audioContext.resume();
+    }catch(e){}
+    soundBtn.textContent="🔊 SUARA AKTIF";
+    soundBtn.className="sound-on";
+    showNotice("Suara panggilan aktif");
+    // Speak current active calls on explicit user activation.
+    const active=previousRows.filter(r=>r.status==="called"&&r.last_call_at);
+    if(active.length){
+      let i=0;
+      const next=()=>{
+        if(i>=active.length)return;
+        announce(active[i++]);
+        setTimeout(next,3800);
+      };
+      next();
+    }
+  }else{
+    soundBtn.textContent="🔇 SUARA NONAKTIF";
+    soundBtn.className="sound-off";
+    if("speechSynthesis" in window) speechSynthesis.cancel();
+    showNotice("Suara panggilan dinonaktifkan");
+  }
+};
+
+refreshBtn.onclick=()=>location.reload();
+
+function tick(){
+  clock.textContent=new Date().toLocaleTimeString("id-ID",{hour12:false});
+  for(const [desk,item] of doneCards){
+    if(Date.now()>=item.until) doneCards.delete(desk);
+  }
+  if(doneCards.size) load();
+}
+setInterval(tick,1000);
+setInterval(load,1500);
+load();
+</script>
+</body>
+</html>
