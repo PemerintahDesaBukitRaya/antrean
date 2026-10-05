@@ -62,7 +62,6 @@ body{
 .desk{
   position:relative;overflow:hidden;background:rgba(255,255,255,.94);
   border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
-  animation:rise .45s ease both;
 }
 .desk:before{
   content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
@@ -154,6 +153,7 @@ const waitingCount=document.getElementById("waitingCount");
 
 let deskCount=6;
 let currentRows=[];
+let currentSignature="";
 
 function esc(v){
   return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;")
@@ -208,7 +208,23 @@ function renderDesk(row){
       </div>
     </section>`;
 }
-function render(){ deskGrid.innerHTML=currentRows.map(renderDesk).join(""); }
+function rowsSignature(rows){
+  return JSON.stringify((rows||[]).map(r=>({
+    meja_pelayanan:Number(r.meja_pelayanan),
+    queue_id:r.queue_id??null,
+    queue_code:r.queue_code??"",
+    customer_name:r.customer_name??"",
+    asal_desa_kelurahan:r.asal_desa_kelurahan??"",
+    status:r.status??""
+  })));
+}
+function render(force=false){
+  const sig=rowsSignature(currentRows);
+  if(!force && sig===currentSignature) return false;
+  currentSignature=sig;
+  deskGrid.innerHTML=currentRows.map(renderDesk).join("");
+  return true;
+}
 
 async function loadConfig(){
   const {data,error}=await db.rpc("get_jumlah_meja_ikd_perlinsos");
@@ -231,9 +247,11 @@ async function loadDesks(silent=false){
   if(!ok) return;
   const {data,error}=await db.rpc("get_meja_ikd_perlinsos",{p_jumlah_meja:deskCount});
   if(error){ setStatus("Gagal memuat kondisi meja: "+error.message,true); return; }
-  currentRows=data||[];
-  render();
-  if(!silent) setStatus("Data meja diperbarui.");
+  const nextRows=data||[];
+  const changed=rowsSignature(nextRows)!==currentSignature;
+  currentRows=nextRows;
+  render(changed);
+  if(!silent && changed) setStatus("Data meja diperbarui.");
   await loadWaiting();
 }
 async function applyDeskCount(){
