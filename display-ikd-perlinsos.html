@@ -74,7 +74,6 @@ body:after{
   background:rgba(255,255,255,.91);border:1px solid rgba(210,225,237,.9);
   border-radius:22px;box-shadow:0 13px 32px rgba(16,53,92,.10);
   backdrop-filter:blur(10px);display:flex;flex-direction:column;
-  animation:cardIn .5s ease both;
 }
 @keyframes cardIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
 .card:before{
@@ -140,6 +139,15 @@ body:after{
   .grid{grid-template-columns:1fr;width:calc(100% - 18px);gap:12px}
   .card{min-height:225px}
 }
+
+.sound-status{
+  position:fixed;right:22px;bottom:18px;z-index:20;
+  padding:9px 14px;border-radius:999px;
+  background:rgba(255,255,255,.9);color:#123a68;
+  font-size:12px;font-weight:900;letter-spacing:.5px;
+  box-shadow:0 8px 24px rgba(10,50,90,.12);
+  border:1px solid rgba(30,90,150,.12);
+}
 </style>
 </head>
 <body>
@@ -155,6 +163,7 @@ body:after{
 <main id="grid" class="grid"></main>
 <div class="footer">Pemerintah Desa Bukit Raya</div>
 <div id="notice" class="notice">Display diperbarui</div>
+<div id="soundStatus" class="sound-status">🔊 SUARA AKTIF</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -171,6 +180,9 @@ let previousRows=[];
 let doneCards=new Map();
 let soundEnabled=true;
 let audioContext=null;
+let renderedSignature="";
+let announcementQueue=[];
+let announcementBusy=false;
 
 function esc(v){
   return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;")
@@ -215,7 +227,29 @@ function idleHtml(row){
       </div>
     </section>`;
 }
-function render(rows){
+function rowsSignature(rows){
+  return JSON.stringify((rows||[]).map(r=>({
+    meja_pelayanan:Number(r.meja_pelayanan),
+    queue_id:r.queue_id??null,
+    queue_code:r.queue_code??"",
+    customer_name:r.customer_name??"",
+    asal_desa_kelurahan:r.asal_desa_kelurahan??"",
+    status:r.status??"",
+    called_at:r.called_at??"",
+    started_at:r.started_at??"",
+    completed_at:r.completed_at??""
+  })));
+}
+function doneSignature(){
+  return JSON.stringify([...doneCards.entries()].map(([desk,item])=>[
+    Number(desk),item.queue_code||"",item.customer_name||"",item.until||0
+  ]));
+}
+function render(rows,force=false){
+  const sig=rowsSignature(rows)+"|done:"+doneSignature()+"|desks:"+deskCount;
+  if(!force && sig===renderedSignature) return false;
+  renderedSignature=sig;
+
   const map=new Map(rows.map(r=>[Number(r.meja_pelayanan),r]));
   const cards=[];
   for(let i=1;i<=deskCount;i++){
@@ -233,6 +267,7 @@ function render(rows){
     }
   }
   grid.innerHTML=cards.join("");
+  return true;
 }
 function normalizeRows(data){
   return (data||[]).map(r=>({...r,meja_pelayanan:Number(r.meja_pelayanan)}));
@@ -247,14 +282,20 @@ function unlockAudio(){
   try{
     if(!audioContext) audioContext=new (window.AudioContext||window.webkitAudioContext)();
     if(audioContext.state==="suspended") audioContext.resume();
+    const s=document.getElementById("soundStatus");
+    if(s) s.textContent="🔊 SUARA AKTIF";
   }catch(e){}
 }
-function speakText(text){
-  if(!soundEnabled || !("speechSynthesis" in window))return;
+function speakText(text,onDone){
+  if(!soundEnabled || !("speechSynthesis" in window)){
+    if(onDone) onDone();
+    return;
+  }
   unlockAudio();
-  window.speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
   u.lang="id-ID";u.rate=.88;u.pitch=1;u.volume=1;
+  u.onend=()=>onDone&&onDone();
+  u.onerror=()=>onDone&&onDone();
   window.speechSynthesis.speak(u);
 }
 function playChime(after){
@@ -262,25 +303,55 @@ function playChime(after){
   try{
     unlockAudio();
     if(!audioContext || audioContext.state==="suspended"){after();return}
+
+    // Notifikasi khusus sebelum suara nomor antrean:
+    // "ting" -> jeda singkat -> "tong" -> jeda -> suara panggilan.
     const now=audioContext.currentTime;
-    [659.25,783.99,987.77].forEach((freq,i)=>{
+    const tones=[
+      {freq:880,  at:0.00, dur:0.20},
+      {freq:1174.66, at:0.30, dur:0.28}
+    ];
+
+    tones.forEach(t=>{
       const osc=audioContext.createOscillator();
       const gain=audioContext.createGain();
-      osc.type="sine";osc.frequency.value=freq;
-      gain.gain.setValueAtTime(.0001,now+i*.16);
-      gain.gain.exponentialRampToValueAtTime(.18,now+i*.16+.025);
-      gain.gain.exponentialRampToValueAtTime(.0001,now+i*.16+.13);
-      osc.connect(gain);gain.connect(audioContext.destination);
-      osc.start(now+i*.16);osc.stop(now+i*.16+.14);
+      osc.type="sine";
+      osc.frequency.setValueAtTime(t.freq,now+t.at);
+      gain.gain.setValueAtTime(.0001,now+t.at);
+      gain.gain.exponentialRampToValueAtTime(.24,now+t.at+0.025);
+      gain.gain.exponentialRampToValueAtTime(.0001,now+t.at+t.dur);
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start(now+t.at);
+      osc.stop(now+t.at+t.dur+0.02);
     });
-    setTimeout(after,650);
+
+    setTimeout(after,850);
   }catch(e){after()}
+}
+function processAnnouncementQueue(){
+  if(announcementBusy || announcementQueue.length===0 || !soundEnabled)return;
+  announcementBusy=true;
+
+  const row=announcementQueue.shift();
+  const words=digitWords(row.queue_code);
+  const name=String(row.customer_name||"").trim();
+
+  // Urutan wajib: NOTIFIKASI -> jeda -> SUARA NOMOR ANTREAN.
+  playChime(()=>{
+    speakText(
+      `Nomor antrean I K D ${words}, atas nama ${name}, silakan menuju meja pelayanan ${row.meja_pelayanan}.`,
+      ()=>{
+        announcementBusy=false;
+        processAnnouncementQueue();
+      }
+    );
+  });
 }
 function announce(row){
   if(!soundEnabled)return;
-  const words=digitWords(row.queue_code);
-  const name=String(row.customer_name||"").trim();
-  playChime(()=>speakText(`Nomor antrean I K D ${words}, atas nama ${name}, silakan menuju meja pelayanan ${row.meja_pelayanan}.`));
+  announcementQueue.push({...row});
+  processAnnouncementQueue();
 }
 function showNotice(text){
   notice.textContent=text;notice.classList.add("show");
@@ -316,14 +387,18 @@ async function load(){
       // Reset baseline so changing the number of desks cannot cause
       // an old call to be announced again.
       previousRows=[];
+      renderedSignature="";
       doneCards.clear();
       showNotice("Jumlah meja diperbarui menjadi "+deskCount);
     }
     const {data,error}=await db.rpc("get_meja_ikd_perlinsos",{p_jumlah_meja:deskCount});
     if(error)throw new Error(error.message);
     const rows=normalizeRows(data);
+    const beforeSignature=renderedSignature;
     detectChanges(rows);
     render(rows);
+    // detectChanges may have created a temporary "SELESAI" card,
+    // so render() decides itself whether a real visual update is needed.
   }catch(e){
     console.error(e);
     grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:34px;color:#b4232e;font-weight:900">Gagal memuat display: ${esc(e.message)}</div>`;
