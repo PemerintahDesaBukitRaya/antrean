@@ -6,70 +6,73 @@
 <title>Panel IKD & Perlinsos - Desa Bukit Raya</title>
 <style>
 :root{
-  --blue:#0b3b82;
-  --blue2:#1261b5;
-  --yellow:#f5c400;
-  --green:#91d4a4;
-  --green2:#16834b;
-  --orange:#f7d7a5;
-  --red:#ed9ba4;
-  --cyan:#9bd5d8;
-  --light:#f3f7fb;
-  --white:#fff;
-  --text:#17324d;
-  --muted:#66788a;
-  --border:#dce6ef;
-  --shadow:0 10px 28px rgba(16,53,92,.10);
+  --blue:#0b3b82;--blue2:#1674c4;--cyan:#1aa7c7;
+  --green:#1f9d68;--yellow:#f3c542;--orange:#f2a93b;
+  --red:#d84b5b;--light:#f4f8fc;--white:#fff;
+  --text:#17324d;--muted:#718096;--border:#dce7f1;
+  --shadow:0 12px 34px rgba(13,55,92,.11);
 }
 *{box-sizing:border-box}
 body{
-  margin:0;
-  font-family:Arial,Helvetica,sans-serif;
-  background:linear-gradient(180deg,#eef5fc 0%,#f8fafc 100%);
-  color:var(--text);
+  margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--text);
+  background:
+    radial-gradient(circle at 10% 10%,rgba(22,116,196,.08),transparent 30%),
+    radial-gradient(circle at 90% 0%,rgba(26,167,199,.07),transparent 28%),
+    linear-gradient(180deg,#eef5fb,#f9fbfd);
 }
-.container{width:min(1320px,calc(100% - 28px));margin:auto;padding:24px 0 40px}
+.container{width:min(1400px,calc(100% - 28px));margin:auto;padding:24px 0 42px}
 .header{
-  background:linear-gradient(135deg,var(--blue),#0b5da9);
-  color:#fff;border-radius:20px;padding:24px 28px;box-shadow:var(--shadow);
+  position:relative;overflow:hidden;color:#fff;border-radius:24px;padding:27px 30px;
+  background:linear-gradient(135deg,#073b82,#0b62ad 55%,#1187bd);
+  box-shadow:0 16px 40px rgba(7,59,130,.20);
 }
-.header h1{margin:0 0 7px;font-size:clamp(23px,3vw,34px)}
-.header p{margin:0;color:rgba(255,255,255,.88);line-height:1.5}
+.header:after{
+  content:"";position:absolute;width:260px;height:260px;border-radius:50%;
+  right:-80px;top:-150px;background:rgba(255,255,255,.10);
+}
+.header h1{position:relative;z-index:1;margin:0 0 7px;font-size:clamp(24px,3vw,36px)}
+.header p{position:relative;z-index:1;margin:0;opacity:.88;line-height:1.5}
 .toolbar{
-  margin-top:18px;background:#fff;border:1px solid var(--border);
-  border-radius:18px;padding:16px;box-shadow:var(--shadow);
-  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  margin-top:18px;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);
+  border:1px solid var(--border);border-radius:20px;padding:15px 17px;
+  box-shadow:var(--shadow);display:flex;align-items:center;
+  justify-content:space-between;gap:14px;flex-wrap:wrap;
 }
-.setting{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.setting label{font-weight:800}
+.setting,.queue-info{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.setting label{font-weight:900}
 .setting input{
-  width:90px;border:1px solid #cbd7e4;border-radius:10px;padding:10px 12px;
-  font-size:15px;text-align:center;outline:none;
+  width:88px;border:1px solid #cbd8e5;border-radius:11px;padding:10px 12px;
+  font-size:15px;text-align:center;outline:none;background:#fff;
 }
 .setting button,.refresh{
-  border:0;border-radius:10px;padding:10px 15px;font-weight:800;cursor:pointer;
+  border:0;border-radius:11px;padding:10px 15px;font-weight:900;cursor:pointer;
 }
 .setting button{background:var(--blue2);color:#fff}
-.refresh{background:#eaf2fb;color:var(--blue)}
-.queue-info{
-  display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);
-}
+.refresh{background:#eaf3fb;color:var(--blue)}
 .waiting-count{
-  display:inline-flex;min-width:32px;height:30px;padding:0 8px;align-items:center;justify-content:center;
-  border-radius:999px;background:#fff2c2;color:#765900;font-weight:900;
+  display:inline-flex;min-width:34px;height:30px;padding:0 9px;
+  align-items:center;justify-content:center;border-radius:999px;
+  background:#fff1c7;color:#775900;font-weight:900;
 }
-.statusbar{margin-top:12px;color:var(--muted);font-size:13px;min-height:18px}
+.statusbar{margin-top:12px;color:var(--muted);font-size:13px;min-height:18px;padding-left:4px}
 .statusbar.error{color:#b4232e}
 .grid{
-  margin-top:18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;
+  margin-top:18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px;
 }
 .desk{
-  background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);
-  overflow:hidden;
+  position:relative;overflow:hidden;background:rgba(255,255,255,.94);
+  border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);
+  animation:rise .45s ease both;
 }
+.desk:before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+  background:linear-gradient(180deg,var(--blue2),var(--cyan));
+}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .desk-head{
-  padding:14px 17px;display:flex;justify-content:space-between;align-items:center;
-  background:#f6f9fc;border-bottom:1px solid var(--border);
+  padding:14px 17px 14px 20px;display:flex;justify-content:space-between;
+  align-items:center;background:linear-gradient(180deg,#f9fbfd,#f3f7fb);
+  border-bottom:1px solid var(--border);
 }
 .desk-title{font-size:18px;font-weight:900;color:var(--blue)}
 .badge{
@@ -77,32 +80,34 @@ body{
   background:#edf1f5;color:#657487;
 }
 .badge.called{background:#fff0cf;color:#806000}
-.badge.serving{background:#e8f7ed;color:#167244}
-.desk-body{padding:17px}
+.badge.serving{background:#e6f7ee;color:#167244}
+.desk-body{padding:17px 18px 18px}
 .ticket{
-  min-height:108px;border:1px dashed #cbd8e5;border-radius:14px;background:#f9fbfd;
+  min-height:112px;border:1px dashed #c9d8e6;border-radius:15px;
+  background:linear-gradient(135deg,#fbfdff,#f5f9fc);
   display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;
 }
-.ticket-number{font-size:36px;font-weight:900;color:var(--blue);line-height:1.05}
-.ticket-name{margin-top:6px;font-size:16px;font-weight:800}
+.ticket-number{font-size:38px;font-weight:950;color:var(--blue);line-height:1.05}
+.ticket-name{margin-top:6px;font-size:16px;font-weight:900;text-transform:uppercase}
 .ticket-origin{margin-top:3px;font-size:12px;color:var(--muted)}
-.idle{color:#8998a7;font-weight:800}
+.idle{color:#8a99a8;font-weight:900;line-height:1.35}
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
 .action{
-  border:0;border-radius:11px;padding:12px 8px;font-size:13px;font-weight:900;cursor:pointer;
-  color:#fff;min-height:44px;
+  border:0;border-radius:11px;padding:12px 8px;font-size:13px;font-weight:900;
+  cursor:pointer;color:#fff;min-height:44px;transition:.18s;
 }
+.action:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.03)}
 .action:disabled{opacity:.45;cursor:not-allowed}
-.call{grid-column:1/-1;background:#1879bd}
-.recall{background:var(--orange);color:#7b5600}
-.start{background:var(--green);color:#176c35}
-.complete{background:var(--cyan);color:#175f63}
-.skip{background:var(--red);color:#7d2630}
+.call{grid-column:1/-1;background:linear-gradient(135deg,#126bb0,#168bc2)}
+.recall{background:#f5d39a;color:#765000}
+.start{background:#9bd8af;color:#176c35}
+.complete{background:#9bd5d8;color:#175f63}
+.skip{background:#eda1a9;color:#7d2630}
 .footer{text-align:center;color:var(--muted);font-size:12px;margin-top:20px}
 @media(max-width:850px){.grid{grid-template-columns:1fr}}
 @media(max-width:520px){
   .container{width:calc(100% - 16px);padding-top:12px}
-  .header{padding:20px}
+  .header{padding:21px}
   .grid{gap:12px}
   .actions{grid-template-columns:1fr}
   .call{grid-column:auto}
@@ -113,13 +118,13 @@ body{
 <div class="container">
   <header class="header">
     <h1>Panel Pelayanan Aktivasi IKD & Pendaftaran Perlinsos</h1>
-    <p>Panel khusus petugas untuk mengelola antrean pada setiap meja pelayanan.</p>
+    <p>Pengaturan jumlah meja dan pengelolaan antrean pelayanan secara real-time.</p>
   </header>
 
   <section class="toolbar">
     <div class="setting">
       <label for="deskCount">Jumlah Meja Pelayanan</label>
-      <input id="deskCount" type="number" min="1" max="50" value="8">
+      <input id="deskCount" type="number" min="1" max="50" value="6">
       <button id="applyBtn" type="button">TERAPKAN</button>
     </div>
     <div class="queue-info">
@@ -140,7 +145,6 @@ const SUPABASE_URL="https://pyawggjlbrvneflpsalj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_5SdvMobBB2AvtXcJd_Scxw_rVsoqM8R";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 
-const SERVICE_NAME="Pelayanan Aktivasi IKD dan Pendaftaran Perlinsos";
 const deskCountInput=document.getElementById("deskCount");
 const applyBtn=document.getElementById("applyBtn");
 const refreshBtn=document.getElementById("refreshBtn");
@@ -148,43 +152,33 @@ const deskGrid=document.getElementById("deskGrid");
 const statusBar=document.getElementById("statusBar");
 const waitingCount=document.getElementById("waitingCount");
 
-let deskCount=Number(localStorage.getItem("ikdDeskCount")||8);
-deskCount=Math.max(1,Math.min(50,deskCount));
-deskCountInput.value=deskCount;
+let deskCount=6;
 let currentRows=[];
 
 function esc(v){
   return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;")
     .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
-
 function setStatus(msg,isError=false){
   statusBar.textContent=msg;
   statusBar.className="statusbar"+(isError?" error":"");
 }
-
 function statusLabel(status){
   if(status==="called") return "DIPANGGIL";
   if(status==="serving") return "SEDANG DILAYANI";
   return "SIAP";
 }
-
 function renderDesk(row){
   const active=row.status==="called" || row.status==="serving";
   const badgeClass=row.status==="called"?"called":(row.status==="serving"?"serving":"");
   const badge=statusLabel(row.status);
-
-  let ticketHtml;
-  if(active){
-    ticketHtml=`
-      <div>
-        <div class="ticket-number">${esc(row.queue_code)}</div>
-        <div class="ticket-name">${esc(row.customer_name)}</div>
-        <div class="ticket-origin">${esc(row.asal_desa_kelurahan||"")}</div>
-      </div>`;
-  }else{
-    ticketHtml=`<div class="idle">0<br><small>Belum ada antrean aktif</small></div>`;
-  }
+  const ticketHtml=active ? `
+    <div>
+      <div class="ticket-number">${esc(row.queue_code)}</div>
+      <div class="ticket-name">${esc(row.customer_name)}</div>
+      <div class="ticket-origin">${esc(row.asal_desa_kelurahan||"")}</div>
+    </div>` :
+    `<div class="idle">0<br><small>Belum ada antrean aktif</small></div>`;
 
   let actions;
   if(!active){
@@ -195,16 +189,13 @@ function renderDesk(row){
     actions=`
       <button class="action recall" data-action="recall" data-desk="${row.meja_pelayanan}" data-queue="${row.queue_id}">🔊 PANGGIL ULANG</button>
       <button class="action start" data-action="start" data-desk="${row.meja_pelayanan}" data-queue="${row.queue_id}">▶ MULAI MELAYANI</button>
-      <button class="action skip" data-action="skip" data-desk="${row.meja_pelayanan}" data-queue="${row.queue_id}">⏭ LEWATI</button>
-    `;
+      <button class="action skip" data-action="skip" data-desk="${row.meja_pelayanan}" data-queue="${row.queue_id}">⏭ LEWATI</button>`;
   }else{
     actions=`
       <button class="action recall" data-action="recall" data-desk="${row.meja_pelayanan}" data-queue="${row.queue_id}">🔊 PANGGIL ULANG</button>
       <button class="action complete" data-action="complete" data-desk="${row.meja_pelayanan}" data-queue="${row.queue_id}">✓ SELESAI</button>
-      <button class="action skip" data-action="skip" data-desk="${row.meja_pelayanan}" data-queue="${row.queue_id}">⏭ LEWATI</button>
-    `;
+      <button class="action skip" data-action="skip" data-desk="${row.meja_pelayanan}" data-queue="${row.queue_id}">⏭ LEWATI</button>`;
   }
-
   return `
     <section class="desk">
       <div class="desk-head">
@@ -217,69 +208,100 @@ function renderDesk(row){
       </div>
     </section>`;
 }
+function render(){ deskGrid.innerHTML=currentRows.map(renderDesk).join(""); }
 
-function render(){
-  deskGrid.innerHTML=currentRows.map(renderDesk).join("");
+async function loadConfig(){
+  const {data,error}=await db.rpc("get_jumlah_meja_ikd_perlinsos");
+  if(error){ setStatus("Gagal membaca jumlah meja: "+error.message,true); return false; }
+  const value=Math.max(1,Math.min(50,Number(data)||6));
+  const changed=value!==deskCount;
+  deskCount=value;
+  deskCountInput.value=value;
+  if(changed) setStatus("Jumlah meja diperbarui otomatis menjadi "+value+".");
+  return true;
 }
-
 async function loadWaiting(){
   const {data,error}=await db.rpc("get_jumlah_antrean_menunggu",{p_counter_code:"P"});
   if(error) return;
   const r=Array.isArray(data)?data[0]:data;
   waitingCount.textContent=Number(r?.jumlah_menunggu||0);
 }
-
 async function loadDesks(silent=false){
+  const ok=await loadConfig();
+  if(!ok) return;
   const {data,error}=await db.rpc("get_meja_ikd_perlinsos",{p_jumlah_meja:deskCount});
-  if(error){
-    setStatus("Gagal memuat kondisi meja: "+error.message,true);
-    return;
-  }
+  if(error){ setStatus("Gagal memuat kondisi meja: "+error.message,true); return; }
   currentRows=data||[];
   render();
   if(!silent) setStatus("Data meja diperbarui.");
   await loadWaiting();
+}
+async function applyDeskCount(){
+  const value=Number(deskCountInput.value);
+  if(!Number.isInteger(value)||value<1||value>50){
+    alert("Jumlah meja harus 1 sampai 50.");
+    return;
+  }
+
+  applyBtn.disabled=true;
+  setStatus("Memeriksa meja yang sedang aktif...");
+  try{
+    const {data:cfg,error:cfgErr}=await db.rpc("get_jumlah_meja_ikd_perlinsos");
+    if(cfgErr) throw new Error(cfgErr.message);
+    const current=Math.max(1,Math.min(50,Number(cfg)||6));
+
+    if(value<current){
+      const {data:rows,error:rowsErr}=await db.rpc("get_meja_ikd_perlinsos",{p_jumlah_meja:current});
+      if(rowsErr) throw new Error(rowsErr.message);
+      const active=(rows||[]).filter(r =>
+        Number(r.meja_pelayanan)>value &&
+        (r.status==="called" || r.status==="serving")
+      );
+      if(active.length){
+        const desks=active.map(r=>"Meja "+r.meja_pelayanan).join(", ");
+        alert("Jumlah meja tidak dapat dikurangi ke "+value+" karena masih ada antrean aktif di "+desks+". Selesaikan/lepati antrean tersebut terlebih dahulu.");
+        deskCountInput.value=current;
+        return;
+      }
+    }
+
+    const {data,error}=await db.rpc("set_jumlah_meja_ikd_perlinsos",{p_jumlah_meja:value});
+    if(error) throw new Error(error.message);
+
+    deskCount=value;
+    deskCountInput.value=value;
+    localStorage.setItem("ikdDeskCount",String(value));
+    setStatus("Berhasil. Semua perangkat akan menyesuaikan menjadi "+Number(data)+" meja.");
+    await loadDesks(true);
+  }catch(e){
+    console.error(e);
+    setStatus(e.message||"Gagal mengubah jumlah meja.",true);
+    await loadDesks(true);
+  }finally{
+    applyBtn.disabled=false;
+  }
 }
 
 async function runAction(button){
   const action=button.dataset.action;
   const desk=Number(button.dataset.desk);
   const queue=button.dataset.queue?Number(button.dataset.queue):null;
-
   button.disabled=true;
   setStatus("Memproses...");
-
   try{
     let data,error;
-
     if(action==="call"){
-      ({data,error}=await db.rpc("panggil_berikutnya_ikd_perlinsos",{
-        p_meja_pelayanan:desk
-      }));
+      ({data,error}=await db.rpc("panggil_berikutnya_ikd_perlinsos",{p_meja_pelayanan:desk}));
     }else if(action==="recall"){
-      ({data,error}=await db.rpc("panggil_ulang_ikd_perlinsos",{
-        p_queue_id:queue,
-        p_meja_pelayanan:desk
-      }));
+      ({data,error}=await db.rpc("panggil_ulang_ikd_perlinsos",{p_queue_id:queue,p_meja_pelayanan:desk}));
     }else if(action==="start"){
-      ({data,error}=await db.rpc("mulai_layani_ikd_perlinsos",{
-        p_queue_id:queue,
-        p_meja_pelayanan:desk
-      }));
+      ({data,error}=await db.rpc("mulai_layani_ikd_perlinsos",{p_queue_id:queue,p_meja_pelayanan:desk}));
     }else if(action==="complete"){
-      ({data,error}=await db.rpc("selesaikan_ikd_perlinsos",{
-        p_queue_id:queue,
-        p_meja_pelayanan:desk
-      }));
+      ({data,error}=await db.rpc("selesaikan_ikd_perlinsos",{p_queue_id:queue,p_meja_pelayanan:desk}));
     }else if(action==="skip"){
-      ({data,error}=await db.rpc("lewati_ikd_perlinsos",{
-        p_queue_id:queue,
-        p_meja_pelayanan:desk
-      }));
+      ({data,error}=await db.rpc("lewati_ikd_perlinsos",{p_queue_id:queue,p_meja_pelayanan:desk}));
     }
-
     if(error) throw new Error(error.message||"Operasi gagal.");
-
     setStatus("Berhasil.");
     await loadDesks(true);
   }catch(e){
@@ -295,18 +317,7 @@ deskGrid.addEventListener("click",e=>{
   const button=e.target.closest("[data-action]");
   if(button) runAction(button);
 });
-
-applyBtn.onclick=()=>{
-  const value=Number(deskCountInput.value);
-  if(!Number.isInteger(value)||value<1||value>50){
-    alert("Jumlah meja harus 1 sampai 50.");
-    return;
-  }
-  deskCount=value;
-  localStorage.setItem("ikdDeskCount",String(value));
-  loadDesks();
-};
-
+applyBtn.onclick=applyDeskCount;
 refreshBtn.onclick=()=>loadDesks();
 
 loadDesks();
