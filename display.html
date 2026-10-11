@@ -249,6 +249,7 @@ function destinationSpeech(code){
 
 const notificationAudio = new Audio("notifikasi-on.mp3");
 notificationAudio.preload = "auto";
+notificationAudio.volume = 0.5;
 
 function playNotification(){
   if(!suaraAktif) return Promise.resolve();
