@@ -247,46 +247,47 @@ function destinationSpeech(code){
 }
 
 
-const notificationAudio = new Audio("audio/notifikasi-on.mp3");
+const notificationAudio = new Audio("notifikasi-on.mp3");
 notificationAudio.preload = "auto";
 
 function playNotification(){
   if(!suaraAktif) return Promise.resolve();
 
-  try{
-    notificationAudio.pause();
-    notificationAudio.currentTime = 0;
+  return new Promise(resolve => {
+    try{
+      notificationAudio.pause();
+      notificationAudio.currentTime = 0;
 
-    return notificationAudio.play().catch(e => {
+      const selesai = () => {
+        notificationAudio.removeEventListener("ended", selesai);
+        notificationAudio.removeEventListener("error", gagal);
+        resolve();
+      };
+
+      const gagal = (e) => {
+        console.warn("Notifikasi audio:", e);
+        notificationAudio.removeEventListener("ended", selesai);
+        notificationAudio.removeEventListener("error", gagal);
+        resolve();
+      };
+
+      notificationAudio.addEventListener("ended", selesai);
+      notificationAudio.addEventListener("error", gagal);
+
+      const p = notificationAudio.play();
+      if(p){
+        p.catch(e => {
+          console.warn("Notifikasi audio:", e);
+          gagal(e);
+        });
+      }
+    }catch(e){
       console.warn("Notifikasi audio:", e);
-    });
-  }catch(e){
-    console.warn("Notifikasi audio:", e);
-    return Promise.resolve();
-  }
+      resolve();
+    }
+  });
 }
 
-    notes.forEach(n => {
-      const osc = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(n.freq, now + n.start);
-
-      gain.gain.setValueAtTime(0.0001, now + n.start);
-      gain.gain.exponentialRampToValueAtTime(n.volume, now + n.start + 0.025);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + n.start + n.duration);
-
-      osc.connect(gain);
-      gain.connect(audioContext.destination);
-
-      osc.start(now + n.start);
-      osc.stop(now + n.start + n.duration + 0.02);
-    });
-  }catch(e){
-    console.warn("Announcement chime:", e);
-  }
-}
 
 async function speak(code, data){
   if(!suaraAktif || !data || !window.speechSynthesis) return;
@@ -297,7 +298,7 @@ async function speak(code, data){
 
   window.speechSynthesis.cancel();
 
-  // Mainkan file notifikasi custom terlebih dahulu.
+  // Tunggu notifikasi custom selesai sebelum TTS dimulai.
   await playNotification();
 
   const nomor = String(data.queue_code || "").replace("-", " ");
@@ -379,6 +380,8 @@ playNotification().then(() => {
   test.lang = "id-ID";
   test.rate = .85;
   window.speechSynthesis.speak(test);
+});
+
 });
 
 function clock(){
