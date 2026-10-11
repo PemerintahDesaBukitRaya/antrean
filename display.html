@@ -247,25 +247,24 @@ function destinationSpeech(code){
 }
 
 
-let audioContext = null;
+const notificationAudio = new Audio("audio/notifikasi-on.mp3");
+notificationAudio.preload = "auto";
 
-function announcementChime(){
-  if(!suaraAktif) return;
+function playNotification(){
+  if(!suaraAktif) return Promise.resolve();
+
   try{
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC) return;
+    notificationAudio.pause();
+    notificationAudio.currentTime = 0;
 
-    if(!audioContext) audioContext = new AC();
-    if(audioContext.state === "suspended") audioContext.resume();
-
-    const now = audioContext.currentTime;
-
-    // Public-address announcement chime: clean, short airport-style ding-dong.
-    // It is synthesized locally, so no audio file is required.
-    const notes = [
-      {freq: 659.25, start: 0.00, duration: 0.28, volume: 0.17},
-      {freq: 523.25, start: 0.22, duration: 0.48, volume: 0.15}
-    ];
+    return notificationAudio.play().catch(e => {
+      console.warn("Notifikasi audio:", e);
+    });
+  }catch(e){
+    console.warn("Notifikasi audio:", e);
+    return Promise.resolve();
+  }
+}
 
     notes.forEach(n => {
       const osc = audioContext.createOscillator();
@@ -289,30 +288,37 @@ function announcementChime(){
   }
 }
 
-function speak(code, data){
+async function speak(code, data){
   if(!suaraAktif || !data || !window.speechSynthesis) return;
+
   const callKey = String(data.call_id || "") + "|" + String(data.queue_id || "");
   if(callKey === speakingKey) return;
   speakingKey = callKey;
 
   window.speechSynthesis.cancel();
-  announcementChime();
+
+  // Mainkan file notifikasi custom terlebih dahulu.
+  await playNotification();
 
   const nomor = String(data.queue_code || "").replace("-", " ");
   const nama = data.customer_name || "";
   const tujuan = destinationSpeech(code);
 
-  setTimeout(() => {
-    const u = new SpeechSynthesisUtterance(
-      "Nomor antrean " + nomor + ", atas nama " + nama + ", silakan menuju " + tujuan + "."
-    );
-    u.lang = "id-ID";
-    u.rate = .82;
-    u.pitch = 1;
-    u.volume = 1;
-    u.onend = () => { speakingKey = null; };
-    window.speechSynthesis.speak(u);
-  }, 700);
+  const u = new SpeechSynthesisUtterance(
+    "Nomor antrean " + nomor +
+    ", atas nama " + nama +
+    ", silakan menuju " + tujuan + "."
+  );
+
+  u.lang = "id-ID";
+  u.rate = .82;
+  u.pitch = 1;
+  u.volume = 1;
+  u.onend = () => {
+    speakingKey = null;
+  };
+
+  window.speechSynthesis.speak(u);
 }
 
 async function loadWaiting(code){
@@ -367,13 +373,12 @@ document.getElementById("soundButton").addEventListener("click", () => {
   button.style.background = "#2bb673";
   button.style.color = "#fff";
   window.speechSynthesis.cancel();
-  announcementChime();
-  setTimeout(() => {
-    const test = new SpeechSynthesisUtterance("Suara antrean aktif.");
-    test.lang = "id-ID";
-    test.rate = .85;
-    window.speechSynthesis.speak(test);
-  }, 700);
+
+playNotification().then(() => {
+  const test = new SpeechSynthesisUtterance("Suara antrean aktif.");
+  test.lang = "id-ID";
+  test.rate = .85;
+  window.speechSynthesis.speak(test);
 });
 
 function clock(){
